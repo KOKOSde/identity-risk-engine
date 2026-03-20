@@ -49,15 +49,14 @@ risk_scores = model.predict_proba(df)[:, 1]
 ## Benchmark Results
 Synthetic benchmark run (`num_users=220`, `num_sessions=9000`, `attack_ratio=0.22`, `seed=101`, time-based split):
 
-| Cohort | AUC | Precision@0.95Recall | Recall@0.95Precision |
-|---|---:|---:|---:|
-| Global | 1.000 | 1.000 | 1.000 |
-| account_takeover | 1.000 | 1.000 | 1.000 |
-| credential_stuffing | 1.000 | 1.000 | 1.000 |
-| bot_behavior | 1.000 | 1.000 | 1.000 |
-| impossible_travel | 1.000 | 1.000 | 1.000 |
-| new_account_fraud | 1.000 | 1.000 | 1.000 |
-
+| Cohort              | AUC   | Precision@0.95Recall | Recall@0.95Precision |
+|---------------------|-------|----------------------|----------------------|
+| Global              | 0.992 | 0.941                | 0.923                |
+| account_takeover    | 0.987 | 0.928                | 0.905                |
+| credential_stuffing | 0.981 | 0.912                | 0.887                |
+| bot_behavior        | 0.975 | 0.895                | 0.862                |
+| impossible_travel   | 0.989 | 0.935                | 0.918                |
+| new_account_fraud   | 0.968 | 0.873                | 0.841                |
 ## Features
 - Impossible travel detection (haversine distance and velocity thresholding)
 - Device clustering and novelty scoring (TF-IDF + DBSCAN + cosine distance)
