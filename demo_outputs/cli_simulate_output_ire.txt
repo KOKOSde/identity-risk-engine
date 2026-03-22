@@ -1,0 +1,13 @@
+Generated 19101 events -> /tmp/ire_synthetic.csv
+Attack mix:
+  account_takeover: 94
+  bot_behavior: 456
+  credential_stuffing: 779
+  impossible_travel: 156
+  mfa_fatigue: 894
+  multi_account_sybil: 630
+  new_account_fraud: 85
+  normal: 14847
+  passkey_registration_abuse: 364
+  recovery_abuse: 632
+  session_hijack: 164

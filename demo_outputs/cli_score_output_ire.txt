@@ -1,0 +1,12 @@
+Scored 19101 events -> /tmp/ire_scored.csv
+Mean risk score: 0.5331
+Action counts:
+  allow: 7409
+  allow_with_monitoring: 664
+  block: 2986
+  manual_review: 3436
+  require_recovery_review: 485
+  revoke_session: 3671
+  step_up_with_email_code: 291
+  step_up_with_passkey: 154
+  step_up_with_totp: 5

@@ -165,12 +165,13 @@ class CompositeRiskScorer:
         if XGBClassifier is None:
             return GradientBoostingClassifier(random_state=self.random_state)
         return XGBClassifier(
-            n_estimators=260,
+            n_estimators=120,
             max_depth=4,
             learning_rate=0.05,
             subsample=0.9,
             colsample_bytree=0.9,
             eval_metric="logloss",
+            n_jobs=4,
             random_state=self.random_state,
         )
 
@@ -178,11 +179,12 @@ class CompositeRiskScorer:
         if LGBMClassifier is None:
             return GradientBoostingClassifier(random_state=self.random_state + 1)
         return LGBMClassifier(
-            n_estimators=320,
+            n_estimators=160,
             learning_rate=0.05,
             num_leaves=31,
             subsample=0.9,
             colsample_bytree=0.9,
+            n_jobs=4,
             random_state=self.random_state,
             verbosity=-1,
         )

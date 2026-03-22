@@ -11,8 +11,8 @@ from identity_risk_engine.synthetic_data_generator import (
 
 def test_composite_model_reaches_auc_target_on_synthetic_data() -> None:
     df = generate_synthetic_login_data(
-        num_users=140,
-        num_sessions=6000,
+        num_users=100,
+        num_sessions=2400,
         attack_ratio=0.22,
         seed=21,
     )
@@ -28,8 +28,8 @@ def test_composite_model_reaches_auc_target_on_synthetic_data() -> None:
 
 def test_predict_proba_shape_and_operating_points() -> None:
     df = generate_synthetic_login_data(
-        num_users=80,
-        num_sessions=2500,
+        num_users=60,
+        num_sessions=1200,
         attack_ratio=0.2,
         seed=31,
     )

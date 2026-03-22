@@ -1,36 +1,40 @@
-# identity-risk-engine: Open-Source Session-Level Identity Risk Scoring for Fintech
+# identity-risk-engine
+
+Add suspicious-login detection, auth-risk scoring, and step-up decisions to your app.
 
 ![MIT License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-![Tests Passing](https://img.shields.io/badge/tests-passing-brightgreen.svg)
+![Tests Passing](https://img.shields.io/badge/tests-32%20passing-brightgreen.svg)
 ![Pip Installable](https://img.shields.io/badge/pip-installable-orange.svg)
 
-## Problem
-Every fintech builds proprietary session risk scoring internally. This is the first open-source toolkit that packages impossible-travel detection, device fingerprinting, behavioral anomaly scoring, and composite ML classification into a single pip-installable library.
+## Why This Exists
+Every fintech and crypto app builds auth-risk scoring internally because generic fraud tooling rarely models authentication flow context well. Teams need to distinguish legitimate users from attackers before full identity verification and before adding friction. This project packages those patterns into an open-source toolkit with synthetic-data-first workflows so you can run everything locally.
 
 ## Architecture
 ```text
-login_events
-    |
-    v
-+-------------------------------+
-| feature extraction            |
-| - geo_velocity                |
-| - device_fingerprint          |
-| - behavior_anomaly            |
-+-------------------------------+
-    |
-    v
-+-------------------------------+
-| composite_scorer              |
-| (XGBoost + LightGBM ensemble) |
-+-------------------------------+
-    |
-    v
-risk_score (0.0 - 1.0)
-    |
-    v
-action = allow | challenge | block
+Auth Events
+  |
+  v
++---------------------------+
+| Signal Extraction         |
+| device + geo + behavior   |
+| passkey + recovery        |
++---------------------------+
+  |
+  v
++---------------------------+
+| Risk Scoring              |
+| Composite + signal fusion |
++---------------------------+
+  |
+  v
++---------------------------+
+| Policy Engine             |
+| tenant/method thresholds  |
++---------------------------+
+  |
+  v
+Action: allow | step-up | review | block | revoke
 ```
 
 ## Quickstart
@@ -39,44 +43,133 @@ pip install identity-risk-engine
 ```
 
 ```python
-from identity_risk_engine.synthetic_data_generator import generate_synthetic_login_data
-from identity_risk_engine.composite_scorer import CompositeRiskScorer
-df = generate_synthetic_login_data(num_users=100, num_sessions=4000, attack_ratio=0.2, seed=42)
-model = CompositeRiskScorer().fit(df, target_col="label")
-risk_scores = model.predict_proba(df)[:, 1]
+from identity_risk_engine.simulator_ire import generate_synthetic_auth_events
+from identity_risk_engine.policy_engine import PolicyEngine
+from identity_risk_engine.risk_engine_ire import score_dataframe
+
+events = generate_synthetic_auth_events(num_users=50, num_sessions=1000, attack_ratio=0.2, seed=42)
+scored = score_dataframe(events, policy_engine=PolicyEngine())
+print(scored[["event_id", "risk_score", "action"]].head())
 ```
 
-## Benchmark Results
-Synthetic benchmark run (`num_users=220`, `num_sessions=9000`, `attack_ratio=0.22`, `seed=101`, time-based split):
+## CLI Quickstart
+```bash
+identity-risk-engine simulate --users 500 --sessions 20000 --attack-ratio 0.2 --out synthetic.csv
+identity-risk-engine score --events synthetic.csv --policy configs/default_policy.yaml --out scored.csv
+identity-risk-engine report --events scored.csv --out report.html
+```
 
-| Cohort              | AUC   | Precision@0.95Recall | Recall@0.95Precision |
-|---------------------|-------|----------------------|----------------------|
-| Global              | 0.992 | 0.941                | 0.923                |
-| account_takeover    | 0.987 | 0.928                | 0.905                |
-| credential_stuffing | 0.981 | 0.912                | 0.887                |
-| bot_behavior        | 0.975 | 0.895                | 0.862                |
-| impossible_travel   | 0.989 | 0.935                | 0.918                |
-| new_account_fraud   | 0.968 | 0.873                | 0.841                |
-## Features
-- Impossible travel detection (haversine distance and velocity thresholding)
-- Device clustering and novelty scoring (TF-IDF + DBSCAN + cosine distance)
-- Behavioral baseline modeling (hour/frequency/duration/actions)
-- Ensemble risk scoring (XGBoost + LightGBM + calibration)
-- Synthetic data generator with multiple realistic attack types
-- Cohort analysis notebooks and dashboard views
-- Threshold tuning for block and friction operating modes
+## FastAPI Quickstart
+```bash
+uvicorn examples.fastapi_demo.app_ire:app --reload
+curl -s http://127.0.0.1:8000/health
+curl -s -X POST http://127.0.0.1:8000/simulate -H "Content-Type: application/json" -d '{"num_users":10,"num_sessions":100}'
+```
+
+## Supported Auth Flows
+- Password login (attempt/success/failure)
+- Passkey registration and authentication
+- MFA challenge flows (sent/passed/failed)
+- Password reset and account recovery
+- Session creation/revocation
+- Profile credential changes (email/phone)
+- OAuth/magic-link style events via normalized event schema fields
+
+## Risk Signals
+| Category | Signals |
+|---|---|
+| Device | `new_device`, `device_dormant`, `multi_account_device`, `device_velocity`, `session_churn`, `emulator_heuristic` |
+| Geo/Network | `impossible_travel`, `geo_velocity`, `new_country`, `new_asn`, `tor_vpn_proxy`, `ip_velocity`, `residential_vs_datacenter` |
+| Behavior | `failure_burst`, `success_after_burst`, `unusual_hour`, `auth_method_switch`, `mfa_fatigue`, `recovery_abuse`, `login_cadence_anomaly`, `account_fanout` |
+| Passkey | `new_passkey_unfamiliar_device`, `passkey_registration_burst`, `passkey_after_password_failure`, `authenticator_churn`, `credential_novelty` |
+| Recovery | `recovery_unfamiliar_env`, `recovery_after_lockout`, `recovery_plus_credential_change`, `recovery_fanout`, `recovery_impossible_travel` |
+
+## Policy Engine
+Default config lives at `configs/default_policy.yaml` and supports score thresholds, per-auth-method overrides, per-tenant overrides, and dry-run mode.
+
+```yaml
+dry_run: false
+thresholds:
+  - max_score: 0.15
+    action: allow
+  - max_score: 0.30
+    action: allow_with_monitoring
+  - max_score: 0.45
+    action: step_up_with_passkey
+  - max_score: 0.60
+    action: step_up_with_totp
+  - max_score: 0.72
+    action: step_up_with_email_code
+  - max_score: 0.82
+    action: require_recovery_review
+  - max_score: 0.90
+    action: manual_review
+  - max_score: 0.97
+    action: block
+  - max_score: 1.00
+    action: revoke_session
+```
+
+Supported actions: `allow`, `allow_with_monitoring`, `step_up_with_passkey`, `step_up_with_totp`, `step_up_with_email_code`, `require_recovery_review`, `manual_review`, `block`, `revoke_session`.
+
+## Benchmark Results
+Run details: `num_users=100`, `num_sessions=2400`, `attack_ratio=0.22`, `seed=21`, time split from `demo_outputs/benchmark_output_ire.txt`.
+
+| Cohort | AUC | Precision@0.95Recall | Recall@0.95Precision |
+|---|---:|---:|---:|
+| Global | 1.000 | 1.000 | 1.000 |
+| account_takeover | 0.914 | 0.246 | 0.000 |
+| bot_behavior | 0.904 | 0.138 | 0.000 |
+| credential_stuffing | 0.915 | 0.262 | 0.000 |
+| impossible_travel | 0.907 | 0.177 | 0.000 |
+| new_account_fraud | 0.907 | 0.177 | 0.000 |
+
+## Demo Output
+CLI report summary snippet (from `/tmp/ire_report.html` generated by CLI):
+
+```text
+total_events: 19101
+avg_risk_score: 0.533134
+p95_risk_score: 1.0
+positive_rate: 0.222711
+```
+
+FastAPI `/simulate` response snippet (from `demo_outputs/fastapi_simulate_ire.txt`):
+
+```json
+{
+  "generated_events": 509,
+  "scored_events": 509,
+  "mean_risk_score": 0.7395597724160389,
+  "action_counts": {
+    "revoke_session": 208,
+    "manual_review": 125,
+    "allow": 107
+  },
+  "attack_counts": {
+    "normal": 368,
+    "credential_stuffing": 37,
+    "recovery_abuse": 32
+  }
+}
+```
 
 ## Who This Is For
-- Fintech identity and authentication teams
 - Crypto exchanges
-- Account security engineers
+- Fintech identity teams
+- Authentication platform builders
 - Fraud analysts
+- Security researchers
 
-## Use Cases
-- Account takeover detection
-- New account fraud detection
-- Authentication friction optimization
-- Sybil pre-screening
+## Case Study
+Coinbase case study notebook placeholder: `notebooks/coinbase_case_study.ipynb` (to be added in a follow-up).
 
-## No API Keys Needed
-This project uses 100% synthetic data. No external APIs, no tokens, and no network dependency for core functionality. Everything runs locally.
+## Related Projects
+- [onchain-sybil-detector](../onchain-sybil-detector)
+- [LocalMod](../LocalMod)
+
+## Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+MIT. See [LICENSE](LICENSE).

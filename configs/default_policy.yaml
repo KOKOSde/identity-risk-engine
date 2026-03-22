@@ -1,0 +1,84 @@
+dry_run: false
+thresholds:
+  - max_score: 0.15
+    action: allow
+  - max_score: 0.30
+    action: allow_with_monitoring
+  - max_score: 0.45
+    action: step_up_with_passkey
+  - max_score: 0.60
+    action: step_up_with_totp
+  - max_score: 0.72
+    action: step_up_with_email_code
+  - max_score: 0.82
+    action: require_recovery_review
+  - max_score: 0.90
+    action: manual_review
+  - max_score: 0.97
+    action: block
+  - max_score: 1.00
+    action: revoke_session
+
+auth_method_overrides:
+  passkey:
+    thresholds:
+      - max_score: 0.20
+        action: allow
+      - max_score: 0.38
+        action: allow_with_monitoring
+      - max_score: 0.58
+        action: step_up_with_passkey
+      - max_score: 0.76
+        action: require_recovery_review
+      - max_score: 1.00
+        action: manual_review
+  password:
+    thresholds:
+      - max_score: 0.12
+        action: allow
+      - max_score: 0.26
+        action: allow_with_monitoring
+      - max_score: 0.42
+        action: step_up_with_totp
+      - max_score: 0.56
+        action: step_up_with_email_code
+      - max_score: 0.74
+        action: require_recovery_review
+      - max_score: 0.88
+        action: manual_review
+      - max_score: 0.96
+        action: block
+      - max_score: 1.00
+        action: revoke_session
+
+tenant_overrides:
+  tenant_1:
+    dry_run: false
+    thresholds:
+      - max_score: 0.10
+        action: allow
+      - max_score: 0.22
+        action: allow_with_monitoring
+      - max_score: 0.34
+        action: step_up_with_totp
+      - max_score: 0.50
+        action: step_up_with_email_code
+      - max_score: 0.68
+        action: require_recovery_review
+      - max_score: 0.84
+        action: manual_review
+      - max_score: 0.94
+        action: block
+      - max_score: 1.00
+        action: revoke_session
+    auth_method_overrides:
+      passkey:
+        thresholds:
+          - max_score: 0.20
+            action: allow_with_monitoring
+          - max_score: 0.45
+            action: step_up_with_passkey
+          - max_score: 0.70
+            action: manual_review
+          - max_score: 1.00
+            action: block
