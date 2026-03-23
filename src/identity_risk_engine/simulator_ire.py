@@ -331,13 +331,12 @@ def generate_synthetic_auth_events(
             else f"RESIDENTIAL-AS{int(rng.integers(1000, 9999))}"
         )
 
-        if rng.random() < 0.96:
-            country = profile.home_country
-            city = profile.home_city
-            lat = profile.home_lat + float(rng.normal(0.0, 0.08))
-            lon = profile.home_lon + float(rng.normal(0.0, 0.08))
-        else:
-            country, city, lat, lon = _pick_far_location(rng, profile.home_country)
+        # Keep benign sessions near the user's home location. Cross-country jumps
+        # are injected by explicit attack scenarios (e.g., impossible_travel).
+        country = profile.home_country
+        city = profile.home_city
+        lat = profile.home_lat + float(rng.normal(0.0, 0.08))
+        lon = profile.home_lon + float(rng.normal(0.0, 0.08))
 
         if rng.random() < 0.88:
             device_hash = profile.home_device_hash
