@@ -60,6 +60,18 @@ print(result["explanation"]["human_summary"])
 
 `PolicyEngine` uses `decide()` (not `evaluate()`), and explanations are available via `result["explanation"]` from `risk_engine_ire.score_event(...)` or `explainer_ire.explain_scored_event(...)`.
 
+## Case Study: Protecting a Crypto Airdrop
+
+The included [case study notebook](notebooks/case_study_airdrop_ato.ipynb) walks through a complete identity risk analysis:
+
+- Attack surface exploration with 4 interactive visualizations
+- Good-actor vs bad-actor classification (AUROC 0.9708)
+- A/B threshold experiment: current (0.5) vs proposed (0.3)
+- Policy engine demo with authentication funnel Sankey diagram
+- Production metrics framework
+
+-> [Open the notebook](notebooks/case_study_airdrop_ato.ipynb)
+
 ## CLI Quickstart
 ```bash
 python3 -m identity_risk_engine.cli_ire simulate --users 500 --sessions 20000 --attack-ratio 0.2 --out synthetic.csv
