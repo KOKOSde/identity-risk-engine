@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -77,7 +77,7 @@ class UserProfile:
 def _weighted_attack_types(
     attack_count: int,
     rng: np.random.Generator,
-    attack_mix: dict[str, float] | None,
+    attack_mix: Optional[dict[str, float]],
 ) -> list[str]:
     if attack_count <= 0:
         return []
@@ -138,8 +138,8 @@ def _mk_event(
     *,
     event_type: str,
     user_id: str,
-    session_id: str | None,
-    timestamp: pd.Timestamp | str,
+    session_id: Optional[str],
+    timestamp: Union[pd.Timestamp, str],
     ip: str,
     country: str,
     city_coarse: str,
@@ -152,12 +152,12 @@ def _mk_event(
     os: str,
     auth_method: str,
     success: bool,
-    failure_reason: str | None = None,
-    challenge_type: str | None = None,
-    recovery_channel: str | None = None,
-    email_domain: str | None = None,
+    failure_reason: Optional[str] = None,
+    challenge_type: Optional[str] = None,
+    recovery_channel: Optional[str] = None,
+    email_domain: Optional[str] = None,
     tenant_id: str = "default",
-    metadata: dict[str, Any] | None = None,
+    metadata: Optional[dict[str, Any]] = None,
     attack_type: str = "normal",
     label: int = 0,
 ) -> dict[str, Any]:
@@ -198,7 +198,7 @@ def _event_from_base(
     base: dict[str, Any],
     *,
     event_type: str,
-    timestamp: pd.Timestamp | str,
+    timestamp: Union[pd.Timestamp, str],
     attack_type: str,
     label: int = 1,
     **updates: Any,
@@ -239,7 +239,7 @@ def generate_synthetic_auth_events(
     seed: int = 42,
     passkey_adoption_rate: float = 0.35,
     recovery_flow_rate: float = 0.08,
-    attack_mix: dict[str, float] | None = None,
+    attack_mix: Optional[dict[str, float]] = None,
 ) -> pd.DataFrame:
     """Generate synthetic auth events with modern flows and attack patterns."""
 

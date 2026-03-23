@@ -1,0 +1,45 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.20, pytest-8.4.2, pluggy-1.6.0 -- /usr/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /scratch/fkalghan/circuit_discovery_and_supression/graphs_ai_psych/identity-risk-engine
+configfile: pyproject.toml
+plugins: cov-7.1.0, anyio-4.12.0
+collecting ... collected 35 items
+
+tests/test_behavior_anomaly.py::test_new_user_no_history_returns_uncertainty_score PASSED [  2%]
+tests/test_behavior_anomaly.py::test_insufficient_baseline_still_scores PASSED [  5%]
+tests/test_behavior_anomaly.py::test_clear_behavior_outlier_scores_higher_than_normal PASSED [  8%]
+tests/test_cli_ire.py::test_cli_simulate_score_report_smoke PASSED       [ 11%]
+tests/test_cli_ire.py::test_cli_score_fast_mode_smoke PASSED             [ 14%]
+tests/test_composite_scorer.py::test_composite_model_reaches_auc_target_on_synthetic_data PASSED [ 17%]
+tests/test_composite_scorer.py::test_predict_proba_shape_and_operating_points PASSED [ 20%]
+tests/test_composite_scorer.py::test_composite_model_is_reproducible_with_seed_42 PASSED [ 22%]
+tests/test_device_fingerprint.py::test_known_device_gets_low_novelty PASSED [ 25%]
+tests/test_device_fingerprint.py::test_new_device_is_more_novel PASSED   [ 28%]
+tests/test_device_fingerprint.py::test_new_user_without_history_scores_max_novelty PASSED [ 31%]
+tests/test_events_ire.py::test_auth_event_validates_required_schema PASSED [ 34%]
+tests/test_events_ire.py::test_event_to_row_serializes_enum_to_string PASSED [ 37%]
+tests/test_events_ire.py::test_invalid_event_type_raises_validation_error PASSED [ 40%]
+tests/test_explainer_ire.py::test_explainer_output_shape_and_content PASSED [ 42%]
+tests/test_fastapi_ire.py::test_health_endpoint PASSED                   [ 45%]
+tests/test_fastapi_ire.py::test_simulate_and_dashboard_endpoints PASSED  [ 48%]
+tests/test_fastapi_ire.py::test_events_endpoint_returns_scored_decision PASSED [ 51%]
+tests/test_geo_velocity.py::test_same_location_speed_zero PASSED         [ 54%]
+tests/test_geo_velocity.py::test_null_coordinates_do_not_crash PASSED    [ 57%]
+tests/test_geo_velocity.py::test_impossible_travel_detected PASSED       [ 60%]
+tests/test_policy_engine_ire.py::test_default_policy_mapping PASSED      [ 62%]
+tests/test_policy_engine_ire.py::test_auth_method_override_applies PASSED [ 65%]
+tests/test_policy_engine_ire.py::test_tenant_override_applies PASSED     [ 68%]
+tests/test_policy_engine_ire.py::test_dry_run_override PASSED            [ 71%]
+tests/test_risk_engine_ire.py::test_attack_events_get_nonzero_risk_scores PASSED [ 74%]
+tests/test_signals_ire.py::test_device_signals_fire_for_new_device PASSED [ 77%]
+tests/test_signals_ire.py::test_geo_signals_fire_for_impossible_travel PASSED [ 80%]
+tests/test_signals_ire.py::test_behavior_signals_fire_for_failure_burst PASSED [ 82%]
+tests/test_signals_ire.py::test_passkey_signals_fire_for_unfamiliar_device PASSED [ 85%]
+tests/test_signals_ire.py::test_recovery_signals_fire_for_unfamiliar_env PASSED [ 88%]
+tests/test_signals_ire.py::test_simulator_ire_contains_all_attack_types PASSED [ 91%]
+tests/test_synthetic_data.py::test_generator_contains_all_attack_types PASSED [ 94%]
+tests/test_synthetic_data.py::test_generator_has_required_features PASSED [ 97%]
+tests/test_synthetic_data.py::test_new_account_fraud_is_young_account PASSED [100%]
+
+======================== 35 passed in 263.28s (0:04:23) ========================

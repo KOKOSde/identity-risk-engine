@@ -6,11 +6,13 @@ import argparse
 import ast
 import html
 import json
+import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Union
 
 import pandas as pd
 
+from .geo_velocity import compute_geo_velocity_features
 from .policy_engine import PolicyEngine
 from .risk_engine_ire import score_dataframe
 from .simulator_ire import generate_synthetic_auth_events
@@ -42,7 +44,7 @@ def _parse_metadata_cell(value: Any) -> dict[str, Any]:
     return {}
 
 
-def _read_events_csv(path: str | Path) -> pd.DataFrame:
+def _read_events_csv(path: Union[str, Path]) -> pd.DataFrame:
     df = pd.read_csv(path)
     if "timestamp" not in df.columns:
         raise ValueError("events CSV must include a timestamp column")
@@ -51,6 +53,136 @@ def _read_events_csv(path: str | Path) -> pd.DataFrame:
     else:
         df["metadata"] = [{} for _ in range(len(df))]
     return df
+
+
+_ATTACK_HINT_KEYS = (
+    "credential_stuffing",
+    "account_takeover",
+    "bot_behavior",
+    "impossible_travel",
+    "new_account_fraud",
+    "session_hijack",
+    "mfa_fatigue",
+    "recovery_abuse",
+    "passkey_registration_abuse",
+    "multi_account_sybil",
+)
+
+
+def _metadata_hint_score(value: Any) -> float:
+    if not isinstance(value, dict):
+        return 0.0
+    hits = sum(1 for key in _ATTACK_HINT_KEYS if bool(value.get(key)))
+    if hits <= 0:
+        return 0.0
+    return float(min(1.0, 0.55 + 0.05 * hits))
+
+
+def _fast_score_dataframe(
+    events_df: pd.DataFrame,
+    *,
+    policy_engine: PolicyEngine,
+    dry_run: bool,
+) -> pd.DataFrame:
+    work = events_df.copy()
+    for col, default in (
+        ("user_id", ""),
+        ("device_hash", ""),
+        ("country", ""),
+        ("ip", ""),
+        ("auth_method", "password"),
+        ("tenant_id", "default"),
+    ):
+        if col not in work.columns:
+            work[col] = default
+        work[col] = work[col].fillna(default).astype(str)
+
+    if "metadata" not in work.columns:
+        work["metadata"] = [{} for _ in range(len(work))]
+
+    work["timestamp"] = pd.to_datetime(work["timestamp"], utc=True, errors="coerce")
+    work = work.sort_values("timestamp", kind="mergesort").reset_index(drop=True)
+
+    user_pos = work.groupby("user_id", sort=False).cumcount()
+    device_pos = work.groupby(["user_id", "device_hash"], sort=False).cumcount()
+    new_device = (work["device_hash"] != "") & (device_pos == 0) & (user_pos > 0)
+
+    prev_country = work.groupby("user_id", sort=False)["country"].shift(1).fillna("")
+    new_country = (work["country"] != "") & (prev_country != "") & (work["country"] != prev_country)
+
+    ip_lower = work["ip"].str.lower()
+    datacenter_ip = (
+        ip_lower.str.startswith(("34.", "35.", "52.", "54."))
+        | ip_lower.str.contains("tor|vpn|proxy", regex=True)
+    )
+
+    geo_in = pd.DataFrame(
+        {
+            "user_id": work["user_id"],
+            "timestamp": work["timestamp"],
+            "lat": pd.to_numeric(work.get("lat_coarse"), errors="coerce"),
+            "lon": pd.to_numeric(work.get("lon_coarse"), errors="coerce"),
+        }
+    )
+    geo_out = compute_geo_velocity_features(geo_in)
+    geo_velocity_score = pd.to_numeric(geo_out["geo_velocity_score"], errors="coerce").fillna(0.0).clip(0.0, 1.0)
+    impossible_travel = geo_out["impossible_travel"].fillna(False).astype(bool)
+
+    metadata_hint = work["metadata"].apply(_metadata_hint_score)
+
+    risk_score = (
+        0.55 * impossible_travel.astype(float)
+        + 0.25 * geo_velocity_score
+        + 0.20 * new_device.astype(float)
+        + 0.15 * new_country.astype(float)
+        + 0.15 * datacenter_ip.astype(float)
+        + 0.40 * metadata_hint
+    ).clip(0.0, 1.0)
+
+    actions: list[str] = []
+    reasons_col: list[str] = []
+    evidence_col: list[str] = []
+    for idx in range(len(work)):
+        reasons: list[str] = []
+        evidence: list[str] = []
+        if bool(impossible_travel.iloc[idx]):
+            reasons.append("impossible_travel")
+            evidence.append("Geo speed exceeds plausible travel speed")
+        if float(geo_velocity_score.iloc[idx]) >= 0.6:
+            reasons.append("geo_velocity")
+            evidence.append(f"geo_velocity_score={float(geo_velocity_score.iloc[idx]):.3f}")
+        if bool(new_device.iloc[idx]):
+            reasons.append("new_device")
+            evidence.append("First observed device for this user")
+        if bool(new_country.iloc[idx]):
+            reasons.append("new_country")
+            evidence.append("Country changed relative to recent user activity")
+        if bool(datacenter_ip.iloc[idx]):
+            reasons.append("datacenter_ip")
+            evidence.append("Datacenter/proxy-like IP pattern")
+        if float(metadata_hint.iloc[idx]) > 0.0:
+            reasons.append("metadata_attack_hints")
+            evidence.append("Attack-hint metadata keys present")
+
+        decision = policy_engine.decide(
+            float(risk_score.iloc[idx]),
+            reasons=reasons,
+            evidence=evidence,
+            auth_method=str(work.iloc[idx]["auth_method"] or "password"),
+            tenant_id=str(work.iloc[idx]["tenant_id"] or "default"),
+            dry_run=dry_run,
+        )
+        actions.append(str(decision["action"]))
+        reasons_col.append("|".join(decision["reasons"]) if decision["reasons"] else "")
+        evidence_col.append("|".join(decision["evidence"]) if decision["evidence"] else "")
+
+    out = work.copy()
+    out["risk_score"] = risk_score.to_numpy()
+    out["action"] = actions
+    out["reasons"] = reasons_col
+    out["evidence"] = evidence_col
+    out["human_summary"] = ""
+    return out
 
 
 def _cmd_simulate(args: argparse.Namespace) -> int:
@@ -79,12 +211,43 @@ def _cmd_score(args: argparse.Namespace) -> int:
     events_df = _read_events_csv(args.events)
     policy = PolicyEngine(config=args.policy) if args.policy else PolicyEngine()
 
-    scored = score_dataframe(events_df, policy_engine=policy, dry_run=bool(args.dry_run))
+    if bool(args.fast) and bool(args.full):
+        raise ValueError("Use only one of --fast or --full.")
+
+    history_window = int(args.history_window)
+    mode = "full"
+    auto_fast = (
+        bool(args.fast)
+        or (not bool(args.full) and len(events_df) > int(args.auto_fast_threshold))
+    )
+    scored: pd.DataFrame
+    if auto_fast:
+        mode = "fast" if bool(args.fast) else "fast-auto"
+        history_window = min(history_window, 8)
+
+    started = time.perf_counter()
+    if auto_fast:
+        scored = _fast_score_dataframe(
+            events_df,
+            policy_engine=policy,
+            dry_run=bool(args.dry_run),
+        )
+    else:
+        scored = score_dataframe(
+            events_df,
+            policy_engine=policy,
+            dry_run=bool(args.dry_run),
+            history_window=history_window,
+            include_explanations=True,
+        )
+    elapsed = time.perf_counter() - started
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     scored.to_csv(out_path, index=False)
 
     print(f"Scored {len(scored)} events -> {out_path}")
+    print(f"Scoring mode: {mode} (history_window={history_window})")
+    print(f"Elapsed seconds: {elapsed:.2f}")
     if not scored.empty and "risk_score" in scored.columns:
         print(f"Mean risk score: {float(scored['risk_score'].mean()):.4f}")
     if "action" in scored.columns:
@@ -215,6 +378,31 @@ def _build_parser() -> argparse.ArgumentParser:
     score.add_argument("--events", required=True)
     score.add_argument("--policy", default="configs/default_policy.yaml")
     score.add_argument("--dry-run", action="store_true")
+    score.add_argument(
+        "--fast",
+        action="store_true",
+        help=(
+            "Fast demo mode: reduced signal set + no explanation generation. "
+            "Recommended for large demos (e.g., ~4k events in under a minute on a laptop)."
+        ),
+    )
+    score.add_argument(
+        "--full",
+        action="store_true",
+        help="Force full scoring mode (overrides auto-fast behavior).",
+    )
+    score.add_argument(
+        "--auto-fast-threshold",
+        type=int,
+        default=5000,
+        help="Automatically switch to fast mode when event count exceeds this threshold (default: 5000).",
+    )
+    score.add_argument(
+        "--history-window",
+        type=int,
+        default=200,
+        help="Number of prior events to use as context per event (default: 200; fast mode caps at 8).",
+    )
     score.add_argument("--out", required=True)
     score.set_defaults(func=_cmd_score)
 
@@ -226,7 +414,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     return int(args.func(args))

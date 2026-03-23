@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -142,7 +143,11 @@ class UserProfile:
     account_created: pd.Timestamp
 
 
-def _pick_location(rng: np.random.Generator, *, not_country: str | None = None) -> dict[str, object]:
+def _pick_location(
+    rng: np.random.Generator,
+    *,
+    not_country: Optional[str] = None,
+) -> dict[str, object]:
     if not_country is None:
         return dict(LOCATIONS[int(rng.integers(0, len(LOCATIONS)))])
     options = [loc for loc in LOCATIONS if str(loc["country"]) != not_country]

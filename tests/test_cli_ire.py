@@ -46,6 +46,7 @@ def test_cli_simulate_score_report_smoke(tmp_path: Path) -> None:
     res_score = subprocess.run(cmd_score, cwd=repo_root, capture_output=True, text=True, check=False)
     assert res_score.returncode == 0, res_score.stderr
     assert scored_path.exists()
+    assert "Scoring mode: full" in res_score.stdout
 
     scored_df = pd.read_csv(scored_path)
     assert "risk_score" in scored_df.columns
@@ -65,3 +66,44 @@ def test_cli_simulate_score_report_smoke(tmp_path: Path) -> None:
     assert res_report.returncode == 0, res_report.stderr
     assert report_path.exists()
     assert "identity-risk-engine Risk Report" in report_path.read_text(encoding="utf-8")
+
+
+def test_cli_score_fast_mode_smoke(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    synthetic_path = tmp_path / "synthetic_fast.csv"
+    scored_path = tmp_path / "scored_fast.csv"
+
+    sim_cmd = [
+        sys.executable,
+        "-m",
+        "identity_risk_engine.cli_ire",
+        "simulate",
+        "--users",
+        "8",
+        "--sessions",
+        "50",
+        "--attack-ratio",
+        "0.2",
+        "--out",
+        str(synthetic_path),
+    ]
+    score_cmd = [
+        sys.executable,
+        "-m",
+        "identity_risk_engine.cli_ire",
+        "score",
+        "--events",
+        str(synthetic_path),
+        "--policy",
+        "configs/default_policy.yaml",
+        "--fast",
+        "--out",
+        str(scored_path),
+    ]
+
+    res_sim = subprocess.run(sim_cmd, cwd=repo_root, capture_output=True, text=True, check=False)
+    assert res_sim.returncode == 0, res_sim.stderr
+    res_score = subprocess.run(score_cmd, cwd=repo_root, capture_output=True, text=True, check=False)
+    assert res_score.returncode == 0, res_score.stderr
+    assert "Scoring mode: fast" in res_score.stdout
+    assert scored_path.exists()

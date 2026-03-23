@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -14,8 +14,8 @@ RECOVERY_EVENTS = {"recovery_requested", "recovery_success", "recovery_failure"}
 
 def evaluate_recovery_signals(
     event: Mapping[str, Any],
-    user_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
-    global_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
+    user_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
+    global_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
 ) -> list[dict[str, object]]:
     now = event_ts(event)
     user_df = to_frame(user_history)
@@ -135,7 +135,7 @@ def evaluate_recovery_signals(
     return results
 
 
-def _to_float(value: Any) -> float | None:
+def _to_float(value: Any) -> Optional[float]:
     try:
         if value is None:
             return None

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -26,7 +26,7 @@ def _ip_asn(event: dict[str, Any]) -> str:
     return str(event.get("ip_asn") or meta.get("ip_asn") or "")
 
 
-def _to_float(value: Any) -> float | None:
+def _to_float(value: Any) -> Optional[float]:
     try:
         if value is None:
             return None
@@ -37,8 +37,8 @@ def _to_float(value: Any) -> float | None:
 
 def evaluate_geo_signals(
     event: dict[str, Any],
-    user_history: pd.DataFrame | None = None,
-    global_history: pd.DataFrame | None = None,
+    user_history: Optional[pd.DataFrame] = None,
+    global_history: Optional[pd.DataFrame] = None,
 ) -> list[dict[str, Any]]:
     user_history = user_history if user_history is not None else pd.DataFrame()
     global_history = global_history if global_history is not None else pd.DataFrame()

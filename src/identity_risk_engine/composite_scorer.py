@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -66,11 +67,11 @@ def _search_threshold(
     y_true: np.ndarray,
     y_score: np.ndarray,
     *,
-    min_recall: float | None = None,
-    min_precision: float | None = None,
+    min_recall: Optional[float] = None,
+    min_precision: Optional[float] = None,
 ) -> OperatingPoint:
     thresholds = np.linspace(0.01, 0.99, 199)
-    best: OperatingPoint | None = None
+    best: Optional[OperatingPoint] = None
 
     for threshold in thresholds:
         y_pred = (y_score >= threshold).astype(int)
@@ -145,7 +146,7 @@ class CompositeRiskScorer:
 
     def __init__(
         self,
-        feature_columns: list[str] | None = None,
+        feature_columns: Optional[list[str]] = None,
         random_state: int = 42,
     ) -> None:
         self.feature_columns = feature_columns or REQUIRED_FEATURES.copy()
@@ -153,11 +154,11 @@ class CompositeRiskScorer:
 
         self.model_xgb = None
         self.model_lgbm = None
-        self.calibrator: IsotonicRegression | None = None
+        self.calibrator: Optional[IsotonicRegression] = None
         self._fitted = False
 
-        self._validation_scores: np.ndarray | None = None
-        self._validation_targets: np.ndarray | None = None
+        self._validation_scores: Optional[np.ndarray] = None
+        self._validation_targets: Optional[np.ndarray] = None
 
         self.operating_points: dict[str, OperatingPoint] = {}
 
@@ -168,10 +169,11 @@ class CompositeRiskScorer:
             n_estimators=120,
             max_depth=4,
             learning_rate=0.05,
-            subsample=0.9,
-            colsample_bytree=0.9,
+            subsample=1.0,
+            colsample_bytree=1.0,
             eval_metric="logloss",
-            n_jobs=4,
+            n_jobs=1,
+            tree_method="hist",
             random_state=self.random_state,
         )
 
@@ -182,10 +184,15 @@ class CompositeRiskScorer:
             n_estimators=160,
             learning_rate=0.05,
             num_leaves=31,
-            subsample=0.9,
-            colsample_bytree=0.9,
-            n_jobs=4,
+            subsample=1.0,
+            colsample_bytree=1.0,
+            n_jobs=1,
             random_state=self.random_state,
+            bagging_seed=self.random_state,
+            feature_fraction_seed=self.random_state,
+            data_random_seed=self.random_state,
+            deterministic=True,
+            force_col_wise=True,
             verbosity=-1,
         )
 
@@ -265,7 +272,7 @@ class CompositeRiskScorer:
         self,
         df: pd.DataFrame,
         target_col: str = "is_attack",
-        proba_col: str | None = None,
+        proba_col: Optional[str] = None,
         min_recall: float = 0.95,
         min_precision: float = 0.95,
     ) -> dict[str, float]:

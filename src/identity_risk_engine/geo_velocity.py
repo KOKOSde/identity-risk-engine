@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -35,7 +36,7 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return float(EARTH_RADIUS_KM * c)
 
 
-def _events_to_df(events: pd.DataFrame | Iterable[Sequence[object]]) -> pd.DataFrame:
+def _events_to_df(events: Union[pd.DataFrame, Iterable[Sequence[object]]]) -> pd.DataFrame:
     if isinstance(events, pd.DataFrame):
         df = events.copy()
     else:
@@ -53,8 +54,8 @@ def _events_to_df(events: pd.DataFrame | Iterable[Sequence[object]]) -> pd.DataF
 
 
 def compute_geo_velocity_features(
-    events: pd.DataFrame | Iterable[Sequence[object]],
-    config: GeoVelocityConfig | None = None,
+    events: Union[pd.DataFrame, Iterable[Sequence[object]]],
+    config: Optional[GeoVelocityConfig] = None,
 ) -> pd.DataFrame:
     """Compute per-event geo-velocity features and impossible-travel flags."""
 
@@ -131,8 +132,8 @@ def compute_geo_velocity_features(
 
 
 def flag_impossible_travel(
-    events: pd.DataFrame | Iterable[Sequence[object]],
-    config: GeoVelocityConfig | None = None,
+    events: Union[pd.DataFrame, Iterable[Sequence[object]]],
+    config: Optional[GeoVelocityConfig] = None,
 ) -> pd.Series:
     """Return boolean impossible-travel flags in event order."""
 
@@ -145,5 +146,5 @@ class GeoVelocityDetector:
     def __init__(self, max_speed_kmh: float = DEFAULT_MAX_AIRCRAFT_SPEED_KMH) -> None:
         self.config = GeoVelocityConfig(max_speed_kmh=max_speed_kmh)
 
-    def score_events(self, events: pd.DataFrame | Iterable[Sequence[object]]) -> pd.DataFrame:
+    def score_events(self, events: Union[pd.DataFrame, Iterable[Sequence[object]]]) -> pd.DataFrame:
         return compute_geo_velocity_features(events, config=self.config)

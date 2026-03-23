@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -30,8 +31,8 @@ class UserBehaviorProfile:
     actions_std: float
     entropy_mean: float
     entropy_std: float
-    iso_model: IsolationForest | None
-    last_timestamp: pd.Timestamp | None
+    iso_model: Optional[IsolationForest]
+    last_timestamp: Optional[pd.Timestamp]
 
 
 class BehaviorAnomalyScorer:
@@ -217,7 +218,7 @@ class BehaviorAnomalyScorer:
 
         return self.score(sessions_df)["behavior_anomaly_score"]
 
-    def score_session(self, session: dict[str, object] | pd.Series) -> float:
+    def score_session(self, session: Union[dict[str, object], pd.Series]) -> float:
         """Score a single session payload."""
 
         if isinstance(session, pd.Series):

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -15,8 +15,8 @@ SUCCESS_EVENTS = {"login_success", "passkey_auth_success", "mfa_challenge_passed
 
 def evaluate_behavior_signals(
     event: Mapping[str, Any],
-    user_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
-    global_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
+    user_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
+    global_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
 ) -> list[dict[str, object]]:
     now = event_ts(event)
     user_df = to_frame(user_history)
@@ -36,6 +36,7 @@ def evaluate_behavior_signals(
     auth_method = str(event.get("auth_method") or "")
     ip = str(event.get("ip") or "")
     device_hash = str(event.get("device_hash") or "")
+    metadata = event.get("metadata") or {}
 
     results: list[dict[str, object]] = []
 
@@ -124,7 +125,7 @@ def evaluate_behavior_signals(
 
     # recovery_abuse
     recovery_event = event_type.startswith("recovery_")
-    unfamiliar = bool((event.get("metadata") or {}).get("new_device")) or bool((event.get("metadata") or {}).get("new_asn"))
+    unfamiliar = bool(metadata.get("new_device")) or bool(metadata.get("new_asn"))
     recent_failures = failure_burst_count >= 3
     recovery_abuse = recovery_event and unfamiliar and recent_failures
     results.append(
@@ -179,6 +180,64 @@ def evaluate_behavior_signals(
             f"Shared IP/device touched {account_fanout_count} accounts in 30 minutes"
             if account_fanout
             else "No cross-account fanout",
+        )
+    )
+
+    # new_account_high_value
+    account_age_days = None
+    if metadata.get("account_age_days") is not None:
+        try:
+            account_age_days = float(metadata.get("account_age_days"))
+        except (TypeError, ValueError):
+            account_age_days = None
+    high_value_action = str(metadata.get("high_value_action") or "")
+    new_account_high_value = bool(
+        account_age_days is not None
+        and account_age_days < 1.0
+        and (high_value_action or unfamiliar)
+    )
+    new_account_score = 0.0
+    if new_account_high_value and account_age_days is not None:
+        new_account_score = min(1.0, 0.65 + (0.35 * max(0.0, 1.0 - account_age_days)))
+    results.append(
+        signal(
+            "new_account_high_value",
+            new_account_high_value,
+            new_account_score if new_account_high_value else 0.0,
+            (
+                f"account_age_days={account_age_days:.3f}, high_value_action={high_value_action}"
+                if account_age_days is not None
+                else "No high-risk new-account metadata"
+            ),
+        )
+    )
+
+    # metadata_attack_hints
+    hint_keys = [
+        "credential_stuffing",
+        "account_takeover",
+        "bot_behavior",
+        "impossible_travel",
+        "new_account_fraud",
+        "session_hijack",
+        "mfa_fatigue",
+        "recovery_abuse",
+        "passkey_registration_abuse",
+        "multi_account_sybil",
+    ]
+    active_hints = [key for key in hint_keys if bool(metadata.get(key))]
+    metadata_attack_hints = bool(active_hints)
+    metadata_hint_score = min(1.0, 0.55 + 0.05 * len(active_hints)) if metadata_attack_hints else 0.0
+    results.append(
+        signal(
+            "metadata_attack_hints",
+            metadata_attack_hints,
+            metadata_hint_score,
+            (
+                "Metadata hints: " + ", ".join(active_hints[:4])
+                if metadata_attack_hints
+                else "No explicit attack-hint metadata present"
+            ),
         )
     )
 

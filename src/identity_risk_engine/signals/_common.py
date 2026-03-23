@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from math import asin, cos, radians, sin, sqrt
-from typing import Any
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,7 @@ def signal(signal_name: str, fired: bool, score: float, evidence: str) -> dict[s
     }
 
 
-def to_frame(history: pd.DataFrame | list[Mapping[str, Any]] | None) -> pd.DataFrame:
+def to_frame(history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]]) -> pd.DataFrame:
     if history is None:
         return pd.DataFrame()
     if isinstance(history, pd.DataFrame):
@@ -44,7 +44,7 @@ def event_ts(event: Mapping[str, Any]) -> pd.Timestamp:
     return ts
 
 
-def filter_user(df: pd.DataFrame, user_id: str | None) -> pd.DataFrame:
+def filter_user(df: pd.DataFrame, user_id: Optional[str]) -> pd.DataFrame:
     if user_id is None or df.empty or "user_id" not in df.columns:
         return pd.DataFrame()
     return df[df["user_id"].astype(str) == str(user_id)]

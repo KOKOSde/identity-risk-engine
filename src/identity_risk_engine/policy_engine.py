@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Union
 
 import yaml
 
@@ -58,7 +58,9 @@ class PolicyDecision:
         }
 
 
-def load_policy_config(config: str | Path | Mapping[str, Any] | None = None) -> dict[str, Any]:
+def load_policy_config(
+    config: Optional[Union[str, Path, Mapping[str, Any]]] = None
+) -> dict[str, Any]:
     """Load policy config from YAML path or dict, merged over defaults."""
 
     loaded: dict[str, Any]
@@ -90,11 +92,11 @@ def load_policy_config(config: str | Path | Mapping[str, Any] | None = None) -> 
 class PolicyEngine:
     """Score-to-action policy evaluator with method/tenant overrides."""
 
-    def __init__(self, config: str | Path | Mapping[str, Any] | None = None) -> None:
+    def __init__(self, config: Optional[Union[str, Path, Mapping[str, Any]]] = None) -> None:
         self.config = load_policy_config(config)
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> PolicyEngine:
+    def from_yaml(cls, path: Union[str, Path]) -> PolicyEngine:
         return cls(config=path)
 
     def _thresholds_for(self, auth_method: str, tenant_id: str) -> list[dict[str, Any]]:
@@ -121,7 +123,7 @@ class PolicyEngine:
         cleaned.sort(key=lambda x: x["max_score"])
         return cleaned
 
-    def _effective_dry_run(self, auth_method: str, tenant_id: str, dry_run: bool | None) -> bool:
+    def _effective_dry_run(self, auth_method: str, tenant_id: str, dry_run: Optional[bool]) -> bool:
         if dry_run is not None:
             return bool(dry_run)
 
@@ -144,11 +146,11 @@ class PolicyEngine:
         self,
         risk_score: float,
         *,
-        reasons: list[str] | None = None,
-        evidence: list[str] | None = None,
+        reasons: Optional[list[str]] = None,
+        evidence: Optional[list[str]] = None,
         auth_method: str = "password",
         tenant_id: str = "default",
-        dry_run: bool | None = None,
+        dry_run: Optional[bool] = None,
     ) -> dict[str, Any]:
         clamped_score = float(max(0.0, min(1.0, risk_score)))
         thresholds = self._thresholds_for(auth_method=auth_method, tenant_id=tenant_id)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -16,8 +16,8 @@ PASSKEY_REMOVE = {"device_removed"}
 
 def evaluate_passkey_signals(
     event: Mapping[str, Any],
-    user_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
-    global_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
+    user_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
+    global_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
 ) -> list[dict[str, object]]:
     now = event_ts(event)
     user_df = to_frame(user_history)

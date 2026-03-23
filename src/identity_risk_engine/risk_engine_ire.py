@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -25,18 +26,27 @@ SIGNAL_FNS = [
     evaluate_recovery_signals,
 ]
 
+FAST_SIGNAL_FNS = [
+    evaluate_device_signals,
+    evaluate_geo_signals,
+]
+
+SignalFunction = Callable[..., list[dict[str, Any]]]
+
 
 def evaluate_signals_for_event(
     event: dict[str, Any],
     history_df: pd.DataFrame,
+    signal_fns: Optional[list[SignalFunction]] = None,
 ) -> list[dict[str, Any]]:
     user_id = str(event.get("user_id") or "")
     if history_df.empty or "user_id" not in history_df.columns:
         user_history = history_df.iloc[0:0]
     else:
         user_history = history_df[history_df["user_id"].astype(str) == user_id]
+    active_signal_fns = signal_fns if signal_fns is not None else SIGNAL_FNS
     outputs: list[dict[str, Any]] = []
-    for fn in SIGNAL_FNS:
+    for fn in active_signal_fns:
         outputs.extend(fn(event=event, user_history=user_history, global_history=history_df))
     return outputs
 
@@ -59,8 +69,14 @@ def score_event(
     history_df: pd.DataFrame,
     policy_engine: PolicyEngine,
     dry_run: bool = False,
+    signal_fns: Optional[list[SignalFunction]] = None,
+    include_explanation: bool = True,
 ) -> dict[str, Any]:
-    signal_results = evaluate_signals_for_event(event=event, history_df=history_df)
+    signal_results = evaluate_signals_for_event(
+        event=event,
+        history_df=history_df,
+        signal_fns=signal_fns,
+    )
     risk_score = aggregate_risk_score(signal_results)
 
     fired = [s for s in signal_results if s.get("fired")]
@@ -76,18 +92,20 @@ def score_event(
         dry_run=dry_run,
     )
 
-    explanation = build_explanation(
-        event=event,
-        signal_results=signal_results,
-        risk_score=risk_score,
-        user_history=(
-            history_df.iloc[0:0]
-            if history_df.empty or "user_id" not in history_df.columns
-            else history_df[
-                history_df["user_id"].astype(str) == str(event.get("user_id") or "")
-            ]
-        ),
-    )
+    explanation = {}
+    if include_explanation:
+        explanation = build_explanation(
+            event=event,
+            signal_results=signal_results,
+            risk_score=risk_score,
+            user_history=(
+                history_df.iloc[0:0]
+                if history_df.empty or "user_id" not in history_df.columns
+                else history_df[
+                    history_df["user_id"].astype(str) == str(event.get("user_id") or "")
+                ]
+            ),
+        )
 
     return {
         "event": event,
@@ -103,6 +121,8 @@ def score_dataframe(
     policy_engine: PolicyEngine,
     dry_run: bool = False,
     history_window: int = 200,
+    signal_fns: Optional[list[SignalFunction]] = None,
+    include_explanations: bool = True,
 ) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
 
@@ -114,14 +134,25 @@ def score_dataframe(
         event = row.to_dict()
         start = max(0, idx - int(history_window))
         history = ordered.iloc[start:idx]
-        result = score_event(event=event, history_df=history, policy_engine=policy_engine, dry_run=dry_run)
+        result = score_event(
+            event=event,
+            history_df=history,
+            policy_engine=policy_engine,
+            dry_run=dry_run,
+            signal_fns=signal_fns,
+            include_explanation=include_explanations,
+        )
 
         scored = event.copy()
         scored["risk_score"] = result["risk_score"]
         scored["action"] = result["decision"]["action"]
         scored["reasons"] = "|".join(result["decision"]["reasons"]) if result["decision"]["reasons"] else ""
         scored["evidence"] = "|".join(result["decision"]["evidence"]) if result["decision"]["evidence"] else ""
-        scored["human_summary"] = result["explanation"]["human_summary"]
+        scored["human_summary"] = (
+            str(result["explanation"]["human_summary"])
+            if include_explanations and result.get("explanation")
+            else ""
+        )
         rows.append(scored)
 
     return pd.DataFrame(rows)

@@ -46,3 +46,22 @@ def test_predict_proba_shape_and_operating_points() -> None:
     friction = model.get_operating_point("friction_mode")
     assert 0.0 <= block.threshold <= 1.0
     assert 0.0 <= friction.threshold <= 1.0
+
+
+def test_composite_model_is_reproducible_with_seed_42() -> None:
+    df = generate_synthetic_login_data(
+        num_users=80,
+        num_sessions=1800,
+        attack_ratio=0.22,
+        seed=42,
+    )
+    train_df, test_df = train_test_time_split(df, test_ratio=0.25)
+
+    model_a = CompositeRiskScorer(random_state=42)
+    model_b = CompositeRiskScorer(random_state=42)
+    model_a.fit(train_df, target_col="label")
+    model_b.fit(train_df, target_col="label")
+
+    proba_a = model_a.predict_proba(test_df)[:, 1]
+    proba_b = model_b.predict_proba(test_df)[:, 1]
+    assert np.allclose(proba_a, proba_b, rtol=0.0, atol=0.0)

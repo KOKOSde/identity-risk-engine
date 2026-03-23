@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -41,29 +41,29 @@ class AuthEvent(BaseModel):
     event_id: str
     event_type: AuthEventType
     user_id: str
-    session_id: str | None = None
+    session_id: Optional[str] = None
     timestamp: str
-    ip: str | None = None
-    country: str | None = None
-    city_coarse: str | None = None
-    lat_coarse: float | None = None
-    lon_coarse: float | None = None
-    user_agent: str | None = None
-    device_hash: str | None = None
-    device_type: str | None = None
-    browser: str | None = None
-    os: str | None = None
-    auth_method: str | None = None
+    ip: Optional[str] = None
+    country: Optional[str] = None
+    city_coarse: Optional[str] = None
+    lat_coarse: Optional[float] = None
+    lon_coarse: Optional[float] = None
+    user_agent: Optional[str] = None
+    device_hash: Optional[str] = None
+    device_type: Optional[str] = None
+    browser: Optional[str] = None
+    os: Optional[str] = None
+    auth_method: Optional[str] = None
     success: bool = False
-    failure_reason: str | None = None
-    challenge_type: str | None = None
-    recovery_channel: str | None = None
-    email_domain: str | None = None
+    failure_reason: Optional[str] = None
+    challenge_type: Optional[str] = None
+    recovery_channel: Optional[str] = None
+    email_domain: Optional[str] = None
     tenant_id: str = Field(default="default")
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-def event_to_row(event: AuthEvent | dict[str, Any]) -> dict[str, Any]:
+def event_to_row(event: Union[AuthEvent, dict[str, Any]]) -> dict[str, Any]:
     """Normalize event payload to a plain dict suitable for DataFrames."""
 
     if isinstance(event, AuthEvent):

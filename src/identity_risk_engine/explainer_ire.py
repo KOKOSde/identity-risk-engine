@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -16,7 +16,7 @@ def _safe_float(value: Any) -> float:
 
 def _baseline_comparison(
     event: dict[str, Any],
-    user_history: pd.DataFrame | None,
+    user_history: Optional[pd.DataFrame],
     risk_score: float,
 ) -> dict[str, Any]:
     if user_history is None or user_history.empty:
@@ -61,7 +61,7 @@ def build_explanation(
     event: dict[str, Any],
     signal_results: list[dict[str, Any]],
     risk_score: float,
-    user_history: pd.DataFrame | None = None,
+    user_history: Optional[pd.DataFrame] = None,
 ) -> dict[str, Any]:
     """Create human + machine-friendly explanations for a scored event."""
 
@@ -111,7 +111,7 @@ def explain_scored_event(
     event: dict[str, Any],
     signal_results: list[dict[str, Any]],
     risk_score: float,
-    user_history: pd.DataFrame | None = None,
+    user_history: Optional[pd.DataFrame] = None,
 ) -> dict[str, Any]:
     """Alias for external callers expecting explain_scored_event()."""
 

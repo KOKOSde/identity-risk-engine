@@ -1,0 +1,4 @@
+Report written -> /tmp/ire_report.html
+real 1.64
+user 2.25
+sys 0.26

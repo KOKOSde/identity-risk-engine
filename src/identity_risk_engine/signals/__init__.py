@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Optional, Union
 
 import pandas as pd
 
@@ -16,8 +16,8 @@ from .signals_recovery_ire import evaluate_recovery_signals
 
 def evaluate_all_signals(
     event: Mapping[str, Any],
-    user_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
-    global_history: pd.DataFrame | list[Mapping[str, Any]] | None = None,
+    user_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
+    global_history: Optional[Union[pd.DataFrame, list[Mapping[str, Any]]]] = None,
 ) -> list[dict[str, object]]:
     """Run all signal families and return a flattened list of signal outputs."""
 

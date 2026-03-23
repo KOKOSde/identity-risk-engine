@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -18,8 +18,8 @@ def _signal(name: str, fired: bool, score: float, evidence: str) -> dict[str, An
 
 def evaluate_device_signals(
     event: dict[str, Any],
-    user_history: pd.DataFrame | None = None,
-    global_history: pd.DataFrame | None = None,
+    user_history: Optional[pd.DataFrame] = None,
+    global_history: Optional[pd.DataFrame] = None,
 ) -> list[dict[str, Any]]:
     user_history = user_history if user_history is not None else pd.DataFrame()
     global_history = global_history if global_history is not None else pd.DataFrame()

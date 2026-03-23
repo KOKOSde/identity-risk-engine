@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -102,12 +103,12 @@ class DeviceNoveltyScorer:
         self._is_fitted = True
         return self
 
-    def _row_to_df(self, session: Mapping[str, object] | pd.Series) -> pd.DataFrame:
+    def _row_to_df(self, session: Union[Mapping[str, object], pd.Series]) -> pd.DataFrame:
         if isinstance(session, pd.Series):
             return pd.DataFrame([session.to_dict()])
         return pd.DataFrame([dict(session)])
 
-    def score_session(self, session: Mapping[str, object] | pd.Series) -> float:
+    def score_session(self, session: Union[Mapping[str, object], pd.Series]) -> float:
         return float(self.score_dataframe(self._row_to_df(session)).iloc[0])
 
     def score_dataframe(self, df: pd.DataFrame) -> pd.Series:

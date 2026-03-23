@@ -1,0 +1,5 @@
+run1= {"auc": 1.0, "precision_at_95_recall": 1.0, "recall_at_95_precision": 1.0}
+run2= {"auc": 1.0, "precision_at_95_recall": 1.0, "recall_at_95_precision": 1.0}
+identical_global= True
+identical_by_attack= True
+by_attack= [{"attack_type": "account_takeover", "auc": 0.9163732394366197, "precision_at_95_recall": 0.24615384615384617, "recall_at_95_precision": 0.0}, {"attack_type": "bot_behavior", "auc": 0.9063573883161512, "precision_at_95_recall": 0.13846153846153847, "recall_at_95_precision": 0.0}, {"attack_type": "credential_stuffing", "auc": 0.9077114944917897, "precision_at_95_recall": 0.26153846153846155, "recall_at_95_precision": 0.0}, {"attack_type": "impossible_travel", "auc": 0.9098786828422877, "precision_at_95_recall": 0.17692307692307693, "recall_at_95_precision": 0.0}, {"attack_type": "new_account_fraud", "auc": 0.9098786828422877, "precision_at_95_recall": 0.17692307692307693, "recall_at_95_precision": 0.0}]
