@@ -25,7 +25,7 @@ except Exception:  # pragma: no cover
     LGBMClassifier = None
 
 REQUIRED_FEATURES = [
-    "geo_velocity_score",
+    "impossible_travel_composite_score",
     "device_novelty_score",
     "behavior_anomaly_score",
     "ip_reputation",
@@ -72,8 +72,16 @@ def _derive_session_shift(df: pd.DataFrame) -> pd.Series:
     work = df.copy()
     work["_row"] = np.arange(len(work))
     work["session_id"] = work["session_id"].fillna("").astype(str)
-    work["device_hash"] = work.get("device_hash", "").fillna("").astype(str)
-    work["ip"] = work.get("ip", "").fillna("").astype(str)
+    work["device_hash"] = (
+        work.get("device_hash", pd.Series([""] * len(work), index=work.index))
+        .fillna("")
+        .astype(str)
+    )
+    work["ip"] = (
+        work.get("ip", pd.Series([""] * len(work), index=work.index))
+        .fillna("")
+        .astype(str)
+    )
     work["timestamp"] = pd.to_datetime(work["timestamp"], utc=True, errors="coerce")
     work = work.sort_values(["session_id", "timestamp", "_row"], kind="mergesort")
 
@@ -266,29 +274,43 @@ def enrich_risk_features(df: pd.DataFrame) -> pd.DataFrame:
 
     from .behavior_anomaly import BehaviorAnomalyScorer
     from .device_fingerprint import DeviceNoveltyScorer
-    from .geo_velocity import compute_geo_velocity_features
+    from .signals.signals_geo_ire import compute_geo_composite_features
 
     out = df.copy()
 
     out = _with_required_base_columns(out)
 
-    if "geo_velocity_score" not in out.columns:
-        geo_in = pd.DataFrame(
-            {
-                "user_id": out.get("user_id", pd.Series([""] * len(out), index=out.index)).fillna("").astype(str),
-                "timestamp": out.get("timestamp", pd.Series([pd.NaT] * len(out), index=out.index)),
-                "lat": pd.to_numeric(
-                    out.get("lat", out.get("lat_coarse", pd.Series([np.nan] * len(out), index=out.index))),
-                    errors="coerce",
-                ),
-                "lon": pd.to_numeric(
-                    out.get("lon", out.get("lon_coarse", pd.Series([np.nan] * len(out), index=out.index))),
-                    errors="coerce",
-                ),
-            }
-        )
-        geo = compute_geo_velocity_features(geo_in)
-        out["geo_velocity_score"] = pd.to_numeric(geo.get("geo_velocity_score"), errors="coerce").fillna(0.0).clip(0.0, 1.0)
+    if "timestamp" not in out.columns:
+        out["timestamp"] = pd.NaT
+    if "user_id" not in out.columns:
+        out["user_id"] = ""
+    if "country" not in out.columns:
+        out["country"] = ""
+    if "device_hash" not in out.columns:
+        out["device_hash"] = ""
+    if "lat_coarse" not in out.columns:
+        out["lat_coarse"] = pd.to_numeric(out.get("lat", np.nan), errors="coerce")
+    if "lon_coarse" not in out.columns:
+        out["lon_coarse"] = pd.to_numeric(out.get("lon", np.nan), errors="coerce")
+
+    if "impossible_travel_composite_score" not in out.columns or "geo_velocity_score" not in out.columns:
+        geo_comp = compute_geo_composite_features(out)
+        for col in geo_comp.columns:
+            out[col] = pd.to_numeric(geo_comp[col], errors="coerce").fillna(0.0)
+            if col.endswith("_score"):
+                out[col] = out[col].clip(0.0, 1.0)
+
+    if "country_mismatch" in out.columns:
+        base_country_mismatch = _ensure_numeric_feature(out, "country_mismatch", default=0.0)
+    else:
+        base_country_mismatch = pd.Series(np.zeros(len(out), dtype=float), index=out.index)
+    out["country_mismatch"] = np.maximum(
+        base_country_mismatch.to_numpy(),
+        np.maximum(
+            _ensure_numeric_feature(out, "device_location_mismatch_score", default=0.0).to_numpy(),
+            _ensure_numeric_feature(out, "geo_session_break_score", default=0.0).to_numpy(),
+        ),
+    )
 
     if "device_novelty_score" not in out.columns:
         for col, default in (
@@ -320,6 +342,11 @@ def enrich_risk_features(df: pd.DataFrame) -> pd.DataFrame:
         behavior.fit(out)
         out["behavior_anomaly_score"] = behavior.score_dataframe(out).to_numpy()
 
+    out["impossible_travel_composite_score"] = _ensure_numeric_feature(
+        out,
+        "impossible_travel_composite_score",
+        default=0.0,
+    ).clip(0.0, 1.0)
     out["geo_velocity_score"] = _ensure_numeric_feature(out, "geo_velocity_score", default=0.0).clip(0.0, 1.0)
     out["device_novelty_score"] = _ensure_numeric_feature(out, "device_novelty_score", default=0.5).clip(0.0, 1.0)
     out["behavior_anomaly_score"] = _ensure_numeric_feature(out, "behavior_anomaly_score", default=0.5).clip(0.0, 1.0)

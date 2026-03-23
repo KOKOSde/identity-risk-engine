@@ -1,13 +1,13 @@
 | Cohort | AUC | Precision@0.95Recall | Recall@0.95Precision |
 |---|---:|---:|---:|
-| Global | 0.987167 | 0.865171 | 0.712741 |
-| account_takeover | 0.838010 | 0.024493 | 0.000000 |
-| bot_behavior | 0.883121 | 0.078209 | 0.000000 |
-| credential_stuffing | 0.872556 | 0.182295 | 0.000000 |
-| impossible_travel | 0.695006 | 0.000000 | 0.000000 |
-| mfa_fatigue | 0.827267 | 0.183863 | 0.000000 |
-| multi_account_sybil | 0.934892 | 0.113269 | 0.000000 |
-| new_account_fraud | 0.939105 | 0.027721 | 0.000000 |
-| passkey_registration_abuse | 0.952384 | 0.123056 | 0.000000 |
-| recovery_abuse | 0.964671 | 0.326278 | 0.000000 |
-| session_hijack | 0.953187 | 0.084667 | 0.000000 |
+| Global | 0.993825 | 0.894497 | 0.822647 |
+| account_takeover | 0.882683 | 0.030981 | 0.000000 |
+| bot_behavior | 0.883804 | 0.089706 | 0.000000 |
+| credential_stuffing | 0.875552 | 0.195525 | 0.000000 |
+| impossible_travel | 0.950263 | 0.039654 | 0.000000 |
+| mfa_fatigue | 0.824975 | 0.177314 | 0.000000 |
+| multi_account_sybil | 0.933256 | 0.124174 | 0.000000 |
+| new_account_fraud | 0.924839 | 0.027883 | 0.000000 |
+| passkey_registration_abuse | 0.944359 | 0.135146 | 0.000000 |
+| recovery_abuse | 0.962002 | 0.312659 | 0.000000 |
+| session_hijack | 0.951517 | 0.082359 | 0.000000 |

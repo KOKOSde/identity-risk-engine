@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 import pandas as pd
@@ -80,7 +81,32 @@ def build_explanation(
 
     feature_values = {str(s.get("signal_name")): _safe_float(s.get("score", 0.0)) for s in ordered}
 
-    if top:
+    signal_map = {str(s.get("signal_name")): s for s in ordered}
+    impossible_score = _safe_float(feature_values.get("impossible_travel_composite", 0.0))
+    impossible_fired = bool(signal_map.get("impossible_travel", {}).get("fired")) or impossible_score > 0.0
+
+    if impossible_fired:
+        speed_txt = "high velocity"
+        impossible_ev = str(signal_map.get("impossible_travel", {}).get("evidence", ""))
+        speed_match = re.search(r"max_speed_kmh=([0-9.]+)", impossible_ev)
+        if speed_match:
+            speed_txt = f"{float(speed_match.group(1)):.0f} km/h"
+
+        detail_parts: list[str] = []
+        mismatch_sig = signal_map.get("device_location_mismatch", {})
+        if mismatch_sig.get("fired"):
+            detail_parts.append(str(mismatch_sig.get("evidence") or "device-location mismatch"))
+        user_country_sig = signal_map.get("new_country_for_user", {})
+        if user_country_sig.get("fired"):
+            detail_parts.append(str(user_country_sig.get("evidence") or "new country for user"))
+        session_break_sig = signal_map.get("geo_session_break", {})
+        if session_break_sig.get("fired"):
+            detail_parts.append(str(session_break_sig.get("evidence") or "geo-session continuity break"))
+        if not detail_parts and impossible_ev:
+            detail_parts.append(impossible_ev)
+
+        human_summary = f"Impossible travel detected: {speed_txt}, " + ", ".join(detail_parts) + "."
+    elif top:
         reason_text = "; ".join([f"{s.get('signal_name')} ({s.get('score', 0):.2f})" for s in top])
         human_summary = f"Risk score {risk_score:.2f}: {reason_text}."
     else:

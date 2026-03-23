@@ -72,7 +72,11 @@ def test_geo_signals_fire_for_impossible_travel() -> None:
     signals = evaluate_geo_signals(event=event, user_history=user_history, global_history=user_history)
     _assert_signal_schema(signals)
     fired = {s["signal_name"] for s in signals if s["fired"]}
+    score_by_name = {str(s["signal_name"]): float(s["score"]) for s in signals}
     assert "impossible_travel" in fired
+    assert "impossible_travel_composite" in fired
+    assert "device_location_mismatch" in fired
+    assert score_by_name["impossible_travel_composite"] > 0.5
 
 
 def test_behavior_signals_fire_for_failure_burst() -> None:

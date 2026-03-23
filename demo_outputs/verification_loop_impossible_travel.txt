@@ -1,0 +1,48 @@
+=========================================
+VERIFICATION ATTEMPT 1
+=========================================
+--- Tests ---
+tests/test_synthetic_data.py::test_generator_contains_all_attack_types PASSED [ 94%]
+tests/test_synthetic_data.py::test_generator_has_required_features PASSED [ 97%]
+tests/test_synthetic_data.py::test_new_account_fraud_is_young_account PASSED [100%]
+
+======================== 36 passed in 295.83s (0:04:55) ========================
+--- Import ---
+OK
+--- README snippets ---
+Snippet 1: PASS
+ALL PASSED
+--- CLI pipeline ---
+  recovery_abuse: 1208
+  session_hijack: 336
+  step_up_with_passkey: 2039
+  step_up_with_totp: 1619
+  bot_behavior: 1014
+Report written -> /tmp/ire_it_report.html
+--- Scorer quality ---
+AUROC: 0.9907
+Total near-zero: 166/8275 (2.0%)
+impossible_travel: mean=1.000, near_zero=0.0%
+account_takeover: mean=0.932, nz=0/159
+bot_behavior: mean=0.788, nz=63/1014
+credential_stuffing: mean=0.858, nz=8/1767
+impossible_travel: mean=1.000, nz=0/159
+mfa_fatigue: mean=0.612, nz=72/1538
+multi_account_sybil: mean=0.896, nz=23/1155
+new_account_fraud: mean=0.979, nz=0/188
+passkey_registration_abuse: mean=0.998, nz=0/751
+recovery_abuse: mean=0.999, nz=0/1208
+session_hijack: mean=1.000, nz=0/336
+PASS
+--- FastAPI ---
+PASS: /health
+PASS: /simulate
+--- Policy engine ---
+PASS: 5 unique actions
+--- Reproducibility ---
+PASS: AUC=0.993825
+--- Red flags ---
+
+=========================================
+ALL CHECKS PASSED ON ATTEMPT 1
+=========================================

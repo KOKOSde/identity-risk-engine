@@ -6,72 +6,72 @@
     "seed": 42,
     "model_random_state": 42
   },
-  "global_auc": 0.9871674467754769,
+  "global_auc": 0.9938249518420395,
   "rows": [
     {
       "cohort": "Global",
-      "auc": 0.9871674467754769,
-      "precision_at_95_recall": 0.8651709401709402,
-      "recall_at_95_precision": 0.7127409496944053
+      "auc": 0.9938249518420395,
+      "precision_at_95_recall": 0.8944974988631196,
+      "recall_at_95_precision": 0.8226469876602952
     },
     {
       "cohort": "account_takeover",
-      "auc": 0.8380095687031318,
-      "precision_at_95_recall": 0.024493020805899393,
+      "auc": 0.8826828099826323,
+      "precision_at_95_recall": 0.03098106712564544,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "bot_behavior",
-      "auc": 0.8831208569156869,
-      "precision_at_95_recall": 0.07820927723840346,
+      "auc": 0.8838041726318808,
+      "precision_at_95_recall": 0.08970649028524183,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "credential_stuffing",
-      "auc": 0.8725561797870893,
-      "precision_at_95_recall": 0.1822953948938201,
+      "auc": 0.8755519293173677,
+      "precision_at_95_recall": 0.19552529182879377,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "impossible_travel",
-      "auc": 0.6950064627024247,
-      "precision_at_95_recall": 0.0,
+      "auc": 0.9502634351949422,
+      "precision_at_95_recall": 0.03965429588205389,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "mfa_fatigue",
-      "auc": 0.8272670036563118,
-      "precision_at_95_recall": 0.18386329223447978,
+      "auc": 0.8249746795768446,
+      "precision_at_95_recall": 0.17731393632721906,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "multi_account_sybil",
-      "auc": 0.9348919756667037,
-      "precision_at_95_recall": 0.11326860841423948,
+      "auc": 0.9332557684820546,
+      "precision_at_95_recall": 0.12417355371900826,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "new_account_fraud",
-      "auc": 0.9391048405058279,
-      "precision_at_95_recall": 0.027721433400946585,
+      "auc": 0.9248390127146626,
+      "precision_at_95_recall": 0.027882960413080894,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "passkey_registration_abuse",
-      "auc": 0.9523841291867123,
-      "precision_at_95_recall": 0.12305611899932387,
+      "auc": 0.944359360065559,
+      "precision_at_95_recall": 0.1351461038961039,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "recovery_abuse",
-      "auc": 0.9646705289945313,
-      "precision_at_95_recall": 0.32627774909654106,
+      "auc": 0.962001916320774,
+      "precision_at_95_recall": 0.3126588713777326,
       "recall_at_95_precision": 0.0
     },
     {
       "cohort": "session_hijack",
-      "auc": 0.9531868828219887,
-      "precision_at_95_recall": 0.08466701084150749,
+      "auc": 0.9515173871173452,
+      "precision_at_95_recall": 0.08235892221657347,
       "recall_at_95_precision": 0.0
     }
   ]

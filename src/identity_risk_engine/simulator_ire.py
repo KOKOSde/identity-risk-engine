@@ -44,6 +44,14 @@ LOCATIONS: list[tuple[str, str, float, float]] = [
     ("AU", "Sydney", -33.8688, 151.2093),
 ]
 
+RARE_ATTACK_LOCATIONS: list[tuple[str, str, float, float]] = [
+    ("NG", "Lagos", 6.5244, 3.3792),
+    ("KE", "Nairobi", -1.2921, 36.8219),
+    ("PE", "Lima", -12.0464, -77.0428),
+    ("RO", "Bucharest", 44.4268, 26.1025),
+    ("ZA", "Cape Town", -33.9249, 18.4241),
+]
+
 
 PASSWORD_UAS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0",
@@ -108,6 +116,16 @@ def _pick_far_location(rng: np.random.Generator, current_country: str) -> tuple[
     if not far:
         far = LOCATIONS
     return far[int(rng.integers(0, len(far)))]
+
+
+def _pick_rare_attack_location(
+    rng: np.random.Generator,
+    current_country: str,
+) -> tuple[str, str, float, float]:
+    rare = [loc for loc in RARE_ATTACK_LOCATIONS if loc[0] != current_country]
+    if not rare:
+        rare = RARE_ATTACK_LOCATIONS
+    return rare[int(rng.integers(0, len(rare)))]
 
 
 def _random_ip(rng: np.random.Generator, datacenter: bool = False) -> str:
@@ -691,25 +709,54 @@ def generate_synthetic_auth_events(
                     event_id += 1
 
             elif attack == "impossible_travel":
-                orig_country = str(base.get("country") or "US")
-                prev_country, prev_city, prev_lat, prev_lon = _pick_far_location(rng, orig_country)
+                profile = profile_by_user.get(str(base.get("user_id") or ""))
+                home_country = profile.home_country if profile is not None else str(base.get("country") or "US")
+                home_city = profile.home_city if profile is not None else str(base.get("city_coarse") or "Home")
+                home_lat = profile.home_lat if profile is not None else float(base.get("lat_coarse") or 0.0)
+                home_lon = profile.home_lon if profile is not None else float(base.get("lon_coarse") or 0.0)
+                home_device = profile.home_device_hash if profile is not None else str(base.get("device_hash") or "")
+                home_type = profile.device_type if profile is not None else str(base.get("device_type") or "desktop")
+
                 rows.append(
                     _event_from_base(
                         event_id,
                         base,
                         event_type=AuthEventType.login_success.value,
-                        timestamp=base_ts - pd.Timedelta(minutes=9),
-                        attack_type=attack,
+                        timestamp=base_ts - pd.Timedelta(minutes=float(rng.uniform(55, 115))),
+                        attack_type="normal",
+                        label=0,
                         success=True,
-                        country=prev_country,
-                        city_coarse=prev_city,
-                        lat_coarse=prev_lat,
-                        lon_coarse=prev_lon,
-                        metadata={**base_meta, "impossible_travel": True},
+                        country=home_country,
+                        city_coarse=home_city,
+                        lat_coarse=home_lat,
+                        lon_coarse=home_lon,
+                        device_hash=home_device,
+                        device_type=home_type,
+                        ip=_random_ip(rng, datacenter=False),
+                        metadata={**base_meta, "impossible_travel": True, "pre_attack_anchor": True},
                     )
                 )
                 event_id += 1
-                base_meta["impossible_travel"] = True
+
+                atk_country, atk_city, atk_lat, atk_lon = _pick_rare_attack_location(rng, home_country)
+                base["event_type"] = AuthEventType.login_success.value
+                base["success"] = True
+                base["country"] = atk_country
+                base["city_coarse"] = atk_city
+                base["lat_coarse"] = float(atk_lat)
+                base["lon_coarse"] = float(atk_lon)
+                base["device_hash"] = f"it_dev_{int(rng.integers(100000, 999999))}"
+                base["device_type"] = "mobile" if home_type == "desktop" else "desktop"
+                base["ip"] = _random_ip(rng, datacenter=True)
+                base["session_id"] = f"sess_it_{int(rng.integers(10_000_000, 99_999_999))}"
+                base_meta.update(
+                    {
+                        "impossible_travel": True,
+                        "new_device": True,
+                        "new_asn": True,
+                        "ip_asn": f"DATACENTER-AS{int(rng.integers(10000, 90000))}",
+                    }
+                )
                 base["metadata"] = base_meta
 
             elif attack == "new_account_fraud":
