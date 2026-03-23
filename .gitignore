@@ -1,7 +1,12 @@
+pycache/
 __pycache__/
 *.py[cod]
+*.pyc
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+.eggs/
+dist/
+build/
 *.executed.ipynb
 .coverage

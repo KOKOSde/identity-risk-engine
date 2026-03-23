@@ -7,8 +7,15 @@ Add suspicious-login detection, auth-risk scoring, and step-up decisions to your
 ![Tests Passing](https://img.shields.io/badge/tests-36%20passing-brightgreen.svg)
 ![pip installable](https://img.shields.io/badge/pip-installable-blue.svg)
 
-## Why This Exists
+## Problem
 Fintech and crypto teams must decide risk at authentication time, before transaction monitoring can help. Most teams rebuild this stack internally, and existing OSS tools usually cover only one slice (device, geo, or behavior). `identity-risk-engine` packages multi-signal auth risk scoring, policy decisions, and synthetic benchmarking into one local-first toolkit.
+
+## 📊 Case Study: Protecting a Crypto Airdrop
+
+See the full analysis with interactive visualizations:  
+**→ [Case Study Notebook](notebooks/case_study_airdrop_ato.ipynb)**
+
+Covers: attack surface exploration, good-actor vs bad-actor classification (AUROC 0.99), A/B threshold experiment, policy engine demo, and a production metrics framework — all with real data from this toolkit.
 
 ## Architecture
 ```text
@@ -59,18 +66,6 @@ print(result["explanation"]["human_summary"])
 ```
 
 `PolicyEngine` uses `decide()` (not `evaluate()`), and explanations are available via `result["explanation"]` from `risk_engine_ire.score_event(...)` or `explainer_ire.explain_scored_event(...)`.
-
-## Case Study: Protecting a Crypto Airdrop
-
-The included [case study notebook](notebooks/case_study_airdrop_ato.ipynb) walks through a complete identity risk analysis:
-
-- Attack surface exploration with 4 interactive visualizations
-- Good-actor vs bad-actor classification (AUROC 0.9708)
-- A/B threshold experiment: current (0.5) vs proposed (0.3)
-- Policy engine demo with authentication funnel Sankey diagram
-- Production metrics framework
-
--> [Open the notebook](notebooks/case_study_airdrop_ato.ipynb)
 
 ## CLI Quickstart
 ```bash
@@ -221,17 +216,17 @@ Outputs: `demo_outputs/benchmark_table_ire.md`, `demo_outputs/benchmark_table_ir
 
 | Cohort | AUC | Precision@0.95Recall | Recall@0.95Precision |
 |---|---:|---:|---:|
-| Global | 0.993825 | 0.894497 | 0.822647 |
-| account_takeover | 0.882683 | 0.030981 | 0.000000 |
-| bot_behavior | 0.883804 | 0.089706 | 0.000000 |
-| credential_stuffing | 0.875552 | 0.195525 | 0.000000 |
-| impossible_travel | 0.950263 | 0.039654 | 0.000000 |
-| mfa_fatigue | 0.824975 | 0.177314 | 0.000000 |
-| multi_account_sybil | 0.933256 | 0.124174 | 0.000000 |
-| new_account_fraud | 0.924839 | 0.027883 | 0.000000 |
-| passkey_registration_abuse | 0.944359 | 0.135146 | 0.000000 |
-| recovery_abuse | 0.962002 | 0.312659 | 0.000000 |
-| session_hijack | 0.951517 | 0.082359 | 0.000000 |
+| Global | 0.993942 | 0.885479 | 0.791677 |
+| account_takeover | 0.880385 | 0.035433 | 0.000000 |
+| bot_behavior | 0.882872 | 0.090328 | 0.000000 |
+| credential_stuffing | 0.880016 | 0.195859 | 0.000000 |
+| impossible_travel | 0.947102 | 0.037392 | 0.000000 |
+| mfa_fatigue | 0.825472 | 0.179117 | 0.000000 |
+| multi_account_sybil | 0.930255 | 0.123943 | 0.000000 |
+| new_account_fraud | 0.926204 | 0.026531 | 0.000000 |
+| passkey_registration_abuse | 0.948031 | 0.136252 | 0.000000 |
+| recovery_abuse | 0.959391 | 0.297699 | 0.000000 |
+| session_hijack | 0.948349 | 0.077661 | 0.000000 |
 
 ## Scorer Quality Check (Seed 42)
 - AUROC: `0.9907`
