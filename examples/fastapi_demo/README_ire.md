@@ -60,6 +60,10 @@ curl -s -X POST http://127.0.0.1:8000/events \
   }'
 ```
 
+`POST /events` expects a top-level object with:
+- `dry_run` (bool, optional)
+- `event` (required auth event object matching `identity_risk_engine.events.AuthEvent`)
+
 Simulate and score:
 
 ```bash

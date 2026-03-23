@@ -216,6 +216,7 @@ def _cmd_score(args: argparse.Namespace) -> int:
 
     history_window = int(args.history_window)
     mode = "full"
+    auto_fast_selected = False
     auto_fast = (
         bool(args.fast)
         or (not bool(args.full) and len(events_df) > int(args.auto_fast_threshold))
@@ -223,7 +224,14 @@ def _cmd_score(args: argparse.Namespace) -> int:
     scored: pd.DataFrame
     if auto_fast:
         mode = "fast" if bool(args.fast) else "fast-auto"
+        auto_fast_selected = (not bool(args.fast) and not bool(args.full))
         history_window = min(history_window, 8)
+
+    if auto_fast_selected:
+        print(
+            f"Auto-selecting fast mode for {len(events_df)} events "
+            "(use --full for complete signal extraction)"
+        )
 
     started = time.perf_counter()
     if auto_fast:
@@ -353,6 +361,17 @@ def _cmd_report(args: argparse.Namespace) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html_doc, encoding="utf-8")
 
+    print("Report summary:")
+    for row in summary_rows:
+        print(f"  {row['metric']}: {row['value']}")
+    if not action_df.empty:
+        print("Top actions:")
+        for _, row in action_df.head(6).iterrows():
+            print(f"  {row['action']}: {int(row['count'])}")
+    if not attack_df.empty:
+        print("Top attack types:")
+        for _, row in attack_df.head(6).iterrows():
+            print(f"  {row['attack_type']}: {int(row['count'])}")
     print(f"Report written -> {out_path}")
     return 0
 

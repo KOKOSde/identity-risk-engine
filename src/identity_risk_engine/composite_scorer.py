@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import ast
+import json
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -34,6 +36,144 @@ REQUIRED_FEATURES = [
 ]
 
 
+def _parse_metadata(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if value is None:
+        return {}
+    text = str(value).strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, dict):
+            return parsed
+    except (ValueError, SyntaxError):
+        pass
+    return {}
+
+
+def _metadata_series(df: pd.DataFrame) -> pd.Series:
+    if "metadata" not in df.columns:
+        return pd.Series([{} for _ in range(len(df))], index=df.index, dtype=object)
+    return df["metadata"].apply(_parse_metadata)
+
+
+def _derive_session_shift(df: pd.DataFrame) -> pd.Series:
+    if "session_id" not in df.columns or "timestamp" not in df.columns:
+        return pd.Series(np.zeros(len(df), dtype=float), index=df.index)
+
+    work = df.copy()
+    work["_row"] = np.arange(len(work))
+    work["session_id"] = work["session_id"].fillna("").astype(str)
+    work["device_hash"] = work.get("device_hash", "").fillna("").astype(str)
+    work["ip"] = work.get("ip", "").fillna("").astype(str)
+    work["timestamp"] = pd.to_datetime(work["timestamp"], utc=True, errors="coerce")
+    work = work.sort_values(["session_id", "timestamp", "_row"], kind="mergesort")
+
+    valid_sid = work["session_id"] != ""
+    prev_device = work.groupby("session_id", sort=False)["device_hash"].shift(1).fillna("")
+    prev_ip = work.groupby("session_id", sort=False)["ip"].shift(1).fillna("")
+    has_prev = (prev_device != "") | (prev_ip != "")
+    changed = valid_sid & has_prev & ((work["device_hash"] != prev_device) | (work["ip"] != prev_ip))
+    work["_session_shift"] = changed.astype(float)
+
+    out = work.sort_values("_row", kind="mergesort")["_session_shift"].reset_index(drop=True)
+    out.index = df.index
+    return out
+
+
+def _derive_ip_reputation(df: pd.DataFrame) -> pd.Series:
+    out = pd.Series(np.full(len(df), 0.12, dtype=float), index=df.index, dtype=float)
+
+    ip_series = df.get("ip", pd.Series([""] * len(df), index=df.index)).fillna("").astype(str)
+    asn_series = df.get("ip_asn", pd.Series([""] * len(df), index=df.index)).fillna("").astype(str)
+    meta_series = _metadata_series(df)
+
+    datacenter = (
+        ip_series.str.startswith(("34.", "35.", "52.", "54."))
+        | ip_series.str.contains("tor|vpn|proxy", case=False, regex=True)
+        | asn_series.str.contains("datacenter|hosting|cloud|vpn", case=False, regex=True)
+    )
+    out = np.maximum(out, datacenter.astype(float) * 0.72)
+
+    session_shift = _derive_session_shift(df)
+    out = np.maximum(out, session_shift * 0.90)
+
+    hijack_hint = meta_series.apply(
+        lambda m: bool(m.get("session_hijack") or m.get("stolen_cookie_replay"))
+    ).astype(float)
+    passkey_abuse_hint = meta_series.apply(
+        lambda m: bool(m.get("passkey_registration_abuse"))
+    ).astype(float)
+    new_env_hint = meta_series.apply(
+        lambda m: bool(m.get("new_device") or m.get("new_asn"))
+    ).astype(float)
+    out = np.maximum(out, hijack_hint * 0.95)
+    out = np.maximum(out, passkey_abuse_hint * 0.82)
+    out = np.maximum(out, new_env_hint * 0.55)
+
+    return out.clip(0.0, 1.0)
+
+
+def _ensure_numeric_feature(df: pd.DataFrame, col: str, default: float = 0.0) -> pd.Series:
+    if col not in df.columns:
+        return pd.Series(np.full(len(df), default, dtype=float), index=df.index)
+    s = pd.to_numeric(df[col], errors="coerce")
+    if s.isna().all():
+        return pd.Series(np.full(len(df), default, dtype=float), index=df.index)
+    return s.fillna(float(s.median()))
+
+
+def _with_required_base_columns(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    meta = _metadata_series(out)
+
+    if "session_duration" not in out.columns:
+        out["session_duration"] = meta.apply(lambda m: float(m.get("session_duration", 600.0)))
+    out["session_duration"] = _ensure_numeric_feature(out, "session_duration", default=600.0).clip(lower=0.0)
+
+    if "country_mismatch" not in out.columns:
+        out["country_mismatch"] = 0.0
+    country_mismatch = _ensure_numeric_feature(out, "country_mismatch", default=0.0)
+    country_hint = meta.apply(lambda m: bool(m.get("new_country") or m.get("new_asn"))).astype(float)
+    session_shift = _derive_session_shift(out)
+    out["country_mismatch"] = np.maximum(country_mismatch.to_numpy(), np.maximum(country_hint.to_numpy(), session_shift.to_numpy()))
+
+    failed_attempts = _ensure_numeric_feature(out, "failed_attempts", default=0.0)
+    meta_failed = meta.apply(lambda m: float(m.get("failed_attempts", 0.0)))
+    passkey_regs = meta.apply(lambda m: float(m.get("registrations_30m", 0.0)))
+    hijack_hint = meta.apply(lambda m: bool(m.get("session_hijack") or m.get("stolen_cookie_replay"))).astype(float)
+    passkey_hint = meta.apply(lambda m: bool(m.get("passkey_registration_abuse"))).astype(float)
+    boosted_failed = np.maximum(failed_attempts.to_numpy(), meta_failed.to_numpy())
+    boosted_failed = np.maximum(boosted_failed, passkey_regs.to_numpy() * passkey_hint.to_numpy())
+    boosted_failed = np.maximum(boosted_failed, 2.0 * hijack_hint.to_numpy())
+    out["failed_attempts"] = boosted_failed
+
+    if "account_age_days" not in out.columns:
+        out["account_age_days"] = meta.apply(lambda m: float(m.get("account_age_days", 30.0)))
+    out["account_age_days"] = _ensure_numeric_feature(out, "account_age_days", default=30.0).clip(lower=0.0)
+
+    if "ip_asn" not in out.columns:
+        out["ip_asn"] = meta.apply(lambda m: str(m.get("ip_asn") or ""))
+    else:
+        out["ip_asn"] = out["ip_asn"].fillna("").astype(str)
+
+    if "ip_reputation" not in out.columns:
+        out["ip_reputation"] = _derive_ip_reputation(out)
+    else:
+        existing = _ensure_numeric_feature(out, "ip_reputation", default=0.12).clip(0.0, 1.0)
+        out["ip_reputation"] = np.maximum(existing.to_numpy(), _derive_ip_reputation(out).to_numpy())
+
+    return out
+
+
 @dataclass
 class OperatingPoint:
     threshold: float
@@ -42,11 +182,16 @@ class OperatingPoint:
 
 
 def _prepare_features(df: pd.DataFrame, feature_columns: list[str]) -> pd.DataFrame:
-    missing = [col for col in feature_columns if col not in df.columns]
+    work = df.copy()
+    missing = [col for col in feature_columns if col not in work.columns]
     if missing:
-        raise ValueError(f"Missing required feature columns: {missing}")
+        work = enrich_risk_features(work)
+        work = _with_required_base_columns(work)
+        for col in feature_columns:
+            if col not in work.columns:
+                work[col] = 0.0
 
-    out = df[feature_columns].copy()
+    out = work[feature_columns].copy()
     for col in out.columns:
         out[col] = pd.to_numeric(out[col], errors="coerce")
         if out[col].isna().all():
@@ -125,18 +270,60 @@ def enrich_risk_features(df: pd.DataFrame) -> pd.DataFrame:
 
     out = df.copy()
 
-    geo = compute_geo_velocity_features(
-        out[[col for col in ["user_id", "timestamp", "lat", "lon"] if col in out.columns]]
-    )
-    out["geo_velocity_score"] = geo["geo_velocity_score"].to_numpy()
+    out = _with_required_base_columns(out)
 
-    device = DeviceNoveltyScorer()
-    device.fit(out)
-    out["device_novelty_score"] = device.score_dataframe(out).to_numpy()
+    if "geo_velocity_score" not in out.columns:
+        geo_in = pd.DataFrame(
+            {
+                "user_id": out.get("user_id", pd.Series([""] * len(out), index=out.index)).fillna("").astype(str),
+                "timestamp": out.get("timestamp", pd.Series([pd.NaT] * len(out), index=out.index)),
+                "lat": pd.to_numeric(
+                    out.get("lat", out.get("lat_coarse", pd.Series([np.nan] * len(out), index=out.index))),
+                    errors="coerce",
+                ),
+                "lon": pd.to_numeric(
+                    out.get("lon", out.get("lon_coarse", pd.Series([np.nan] * len(out), index=out.index))),
+                    errors="coerce",
+                ),
+            }
+        )
+        geo = compute_geo_velocity_features(geo_in)
+        out["geo_velocity_score"] = pd.to_numeric(geo.get("geo_velocity_score"), errors="coerce").fillna(0.0).clip(0.0, 1.0)
 
-    behavior = BehaviorAnomalyScorer(min_history=5)
-    behavior.fit(out)
-    out["behavior_anomaly_score"] = behavior.score_dataframe(out).to_numpy()
+    if "device_novelty_score" not in out.columns:
+        for col, default in (
+            ("user_agent", ""),
+            ("screen_resolution", "unknown"),
+            ("timezone", "UTC"),
+            ("language", "en"),
+            ("ip_asn", "unknown"),
+            ("user_id", ""),
+        ):
+            if col not in out.columns:
+                out[col] = default
+            out[col] = out[col].fillna(default).astype(str)
+        device = DeviceNoveltyScorer()
+        device.fit(out)
+        out["device_novelty_score"] = device.score_dataframe(out).to_numpy()
+
+    if "behavior_anomaly_score" not in out.columns:
+        for col, default in (
+            ("user_id", ""),
+            ("timestamp", pd.NaT),
+            ("session_duration", 600.0),
+            ("actions_count", 0.0),
+            ("action_entropy", 0.0),
+        ):
+            if col not in out.columns:
+                out[col] = default
+        behavior = BehaviorAnomalyScorer(min_history=5)
+        behavior.fit(out)
+        out["behavior_anomaly_score"] = behavior.score_dataframe(out).to_numpy()
+
+    out["geo_velocity_score"] = _ensure_numeric_feature(out, "geo_velocity_score", default=0.0).clip(0.0, 1.0)
+    out["device_novelty_score"] = _ensure_numeric_feature(out, "device_novelty_score", default=0.5).clip(0.0, 1.0)
+    out["behavior_anomaly_score"] = _ensure_numeric_feature(out, "behavior_anomaly_score", default=0.5).clip(0.0, 1.0)
+    out["ip_reputation"] = _ensure_numeric_feature(out, "ip_reputation", default=0.12).clip(0.0, 1.0)
 
     return out
 

@@ -1,0 +1,17 @@
+Global AUROC: 0.987167
+Markdown table: /scratch/fkalghan/circuit_discovery_and_supression/graphs_ai_psych/identity-risk-engine/demo_outputs/benchmark_table_ire.md
+JSON metrics: /scratch/fkalghan/circuit_discovery_and_supression/graphs_ai_psych/identity-risk-engine/demo_outputs/benchmark_table_ire.json
+
+| Cohort | AUC | Precision@0.95Recall | Recall@0.95Precision |
+|---|---:|---:|---:|
+| Global | 0.987167 | 0.865171 | 0.712741 |
+| account_takeover | 0.838010 | 0.024493 | 0.000000 |
+| bot_behavior | 0.883121 | 0.078209 | 0.000000 |
+| credential_stuffing | 0.872556 | 0.182295 | 0.000000 |
+| impossible_travel | 0.695006 | 0.000000 | 0.000000 |
+| mfa_fatigue | 0.827267 | 0.183863 | 0.000000 |
+| multi_account_sybil | 0.934892 | 0.113269 | 0.000000 |
+| new_account_fraud | 0.939105 | 0.027721 | 0.000000 |
+| passkey_registration_abuse | 0.952384 | 0.123056 | 0.000000 |
+| recovery_abuse | 0.964671 | 0.326278 | 0.000000 |
+| session_hijack | 0.953187 | 0.084667 | 0.000000 |

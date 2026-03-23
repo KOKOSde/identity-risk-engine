@@ -107,3 +107,46 @@ def test_cli_score_fast_mode_smoke(tmp_path: Path) -> None:
     assert res_score.returncode == 0, res_score.stderr
     assert "Scoring mode: fast" in res_score.stdout
     assert scored_path.exists()
+
+
+def test_cli_score_auto_fast_mode_message(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    synthetic_path = tmp_path / "synthetic_auto_fast.csv"
+    scored_path = tmp_path / "scored_auto_fast.csv"
+
+    sim_cmd = [
+        sys.executable,
+        "-m",
+        "identity_risk_engine.cli_ire",
+        "simulate",
+        "--users",
+        "8",
+        "--sessions",
+        "50",
+        "--attack-ratio",
+        "0.2",
+        "--out",
+        str(synthetic_path),
+    ]
+    res_sim = subprocess.run(sim_cmd, cwd=repo_root, capture_output=True, text=True, check=False)
+    assert res_sim.returncode == 0, res_sim.stderr
+
+    score_cmd = [
+        sys.executable,
+        "-m",
+        "identity_risk_engine.cli_ire",
+        "score",
+        "--events",
+        str(synthetic_path),
+        "--policy",
+        "configs/default_policy.yaml",
+        "--auto-fast-threshold",
+        "10",
+        "--out",
+        str(scored_path),
+    ]
+    res_score = subprocess.run(score_cmd, cwd=repo_root, capture_output=True, text=True, check=False)
+    assert res_score.returncode == 0, res_score.stderr
+    assert "Auto-selecting fast mode for" in res_score.stdout
+    assert "Scoring mode: fast-auto" in res_score.stdout
+    assert scored_path.exists()
