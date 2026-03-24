@@ -12,8 +12,9 @@ Fintech and crypto teams must decide risk at authentication time, before transac
 
 ## 📊 Case Study: Protecting a Crypto Airdrop
 
-See the full analysis with interactive visualizations:  
+For some use cases examples see the full analysis with interactive visualizations:  
 **→ [Case Study Notebook](notebooks/case_study_airdrop_ato.ipynb)**
+![Authentication Funnel Sankey: Login -> Risk -> Outcome](notebooks/images/chart_11_sankey_funnel.png)
 
 Covers: attack surface exploration, good-actor vs bad-actor classification (AUROC 0.99), A/B threshold experiment, policy engine demo, and a production metrics framework — all with real data from this toolkit.
 
