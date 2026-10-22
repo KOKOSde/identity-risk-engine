@@ -57,3 +57,9 @@ extend-exclude = ["notebooks/*.ipynb"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4"]
 ignore = ["E501"]
+
+[tool.ruff.lint.pyupgrade]
+# Python 3.9 is supported, and Pydantic/FastAPI evaluate annotations at runtime there,
+# so `X | None` / `X | Y` would fail even with `from __future__ import annotations`.
+# Keep `Optional[...]` / `Union[...]` instead of the PEP 604 rewrites (UP007/UP045).
+keep-runtime-typing = true
