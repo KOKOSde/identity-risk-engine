@@ -274,14 +274,11 @@ def _compute_geo_composite_for_event(
     )
     composite = float(max(0.0, min(1.0, composite)))
     composite_evidence = (
-        "pairwise_geo_velocity={:.3f}; new_country_for_user={:.3f}; "
-        "rare_country_global={:.3f}; device_location_mismatch={:.3f}; geo_session_break={:.3f}".format(
-            pair_score,
-            user_country_score,
-            global_country_score,
-            mismatch_score,
-            session_break_score,
-        )
+        f"pairwise_geo_velocity={pair_score:.3f}; "
+        f"new_country_for_user={user_country_score:.3f}; "
+        f"rare_country_global={global_country_score:.3f}; "
+        f"device_location_mismatch={mismatch_score:.3f}; "
+        f"geo_session_break={session_break_score:.3f}"
     )
 
     return GeoCompositeResult(
